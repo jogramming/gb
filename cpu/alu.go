@@ -1,5 +1,32 @@
 package cpu
 
+// some helpers
+func SUB16(a, b uint16) (result uint16, zf, hf, cf bool) {
+	// TODO
+	return
+}
+
+func SUB8(a uint8, b int) (result uint8, zf, hf, cf bool) {
+	ac := int(a)
+	// Check half burrow
+	if ac&0x0F < b&0x0F {
+		hf = true
+	}
+	// Check burrow
+	if ac < b {
+		cf = true
+	}
+	result = uint8(int(a) - b)
+	if result == 0 {
+		zf = true
+	}
+	return
+}
+
+func SUB88(a uint8, b uint8) (result uint8, zf, hf, cf bool) {
+	return SUB8(a, int(b))
+}
+
 // 16bit add
 func ADD16(a, b uint16) (result uint16, zf, hf, cf bool) {
 	// Check half carry
@@ -46,112 +73,94 @@ func ADD88(a, b uint8) (result uint8, zf, hf, cf bool) {
 	return ADD8(a, int(b))
 }
 
+func (c *Cpu) AddAr(val uint8) {
+	result, zf, hf, cf := ADD88(c.A, val)
+	c.setFlags(zf, false, hf, cf)
+	c.A = result
+}
+
+func (c *Cpu) AdcAr(val uint8) {
+	result, zf, hf, cf := ADD8(c.A, int(val)+int((c.F>>4)&0x1))
+	c.A = result
+	c.setFlags(zf, false, hf, cf)
+}
+
+func (c *Cpu) SubAr(val uint8) {
+	result, zf, hf, cf := SUB88(c.A, val)
+	c.A = result
+	c.setFlags(zf, true, hf, cf)
+}
+
+func (c *Cpu) SbcAr(val uint8) {
+	flag := int((c.F >> 4) & 0x1)
+	result, zf, hf, cf := SUB8(c.A, int(val)+flag)
+	c.A = result
+	c.setFlags(zf, true, hf, cf)
+}
+
 // 8 bit alu
-func ADDArA(c *Cpu) {
-	result, zf, hf, cf := ADD88(c.A, c.A)
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
+// ADD A, n
+func ADDAA(c *Cpu) { c.AddAr(c.A) }
+func ADDAB(c *Cpu) { c.AddAr(c.B) }
+func ADDAC(c *Cpu) { c.AddAr(c.C) }
+func ADDAD(c *Cpu) { c.AddAr(c.D) }
+func ADDAE(c *Cpu) { c.AddAr(c.E) }
+func ADDAH(c *Cpu) { c.AddAr(c.H) }
+func ADDAL(c *Cpu) { c.AddAr(c.L) }
 
-func ADDArB(c *Cpu) {
-	result, zf, hf, cf := ADD88(c.A, c.B)
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADDArC(c *Cpu) {
-	result, zf, hf, cf := ADD88(c.A, c.C)
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADDArD(c *Cpu) {
-	result, zf, hf, cf := ADD88(c.A, c.D)
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADDArE(c *Cpu) {
-	result, zf, hf, cf := ADD88(c.A, c.E)
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADDArH(c *Cpu) {
-	result, zf, hf, cf := ADD88(c.A, c.H)
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADDArL(c *Cpu) {
-	result, zf, hf, cf := ADD88(c.A, c.L)
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADDArHL(c *Cpu) {
+func ADDAHL(c *Cpu) {
 	result, zf, hf, cf := ADD8(c.A, int(CombineRegisters(c.H, c.L)))
 	c.A = result
 	c.setFlags(zf, false, hf, cf)
 }
 
-func ADDArn(c *Cpu) {
+func ADDAn(c *Cpu) {
 	result, zf, hf, cf := ADD88(c.A, c.MMU.ReadByte(c.PC))
 	c.A = result
 	c.setFlags(zf, false, hf, cf)
 }
 
 // ADC A, n
-func ADCArA(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(c.A+((c.F>>4)&0x1)))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
+// Add + carry flag
+func ADCAA(c *Cpu) { c.AdcAr(c.A) }
+func ADCAB(c *Cpu) { c.AdcAr(c.B) }
+func ADCAC(c *Cpu) { c.AdcAr(c.C) }
+func ADCAD(c *Cpu) { c.AdcAr(c.D) }
+func ADCAE(c *Cpu) { c.AdcAr(c.E) }
+func ADCAH(c *Cpu) { c.AdcAr(c.H) }
+func ADCAL(c *Cpu) { c.AdcAr(c.L) }
 
-func ADCArB(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(c.B+((c.F>>4)&0x1)))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADCArC(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(c.C+((c.F>>4)&0x1)))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADCArD(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(c.D+((c.F>>4)&0x1)))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADCArE(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(c.E+((c.F>>4)&0x1)))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADCArH(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(c.H+((c.F>>4)&0x1)))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADCArL(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(c.L+((c.F>>4)&0x1)))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
-
-func ADCArHL(c *Cpu) {
+func ADCAHL(c *Cpu) {
 	result, zf, hf, cf := ADD8(c.A, int(CombineRegisters(c.H, c.L))+int((c.F>>4)&0x1))
 	c.A = result
 	c.setFlags(zf, false, hf, cf)
 }
 
-func ADCArn(c *Cpu) {
+func ADCAn(c *Cpu) {
 	result, zf, hf, cf := ADD8(c.A, int(c.MMU.ReadByte(c.PC))+int((c.F>>4)&0x1))
 	c.A = result
 	c.setFlags(zf, false, hf, cf)
+}
+
+// SUB A, n
+func SUBAA(c *Cpu) { c.SubAr(c.A) }
+func SUBAB(c *Cpu) { c.SubAr(c.B) }
+func SUBAC(c *Cpu) { c.SubAr(c.C) }
+func SUBAD(c *Cpu) { c.SubAr(c.D) }
+func SUBAE(c *Cpu) { c.SubAr(c.E) }
+func SUBAH(c *Cpu) { c.SubAr(c.H) }
+func SUBAL(c *Cpu) { c.SubAr(c.L) }
+
+func SUBAHL(c *Cpu) {
+	val := c.MMU.ReadByte(CombineRegisters(c.H, c.L))
+	result, zf, hf, cf := SUB88(c.A, val)
+	c.A = result
+	c.setFlags(zf, true, hf, cf)
+}
+
+func SUBAn(c *Cpu) {
+	val := c.MMU.ReadByte(c.PC)
+	result, zf, hf, cf := SUB88(c.A, val)
+	c.A = result
+	c.setFlags(zf, true, hf, cf)
 }
