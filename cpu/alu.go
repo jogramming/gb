@@ -55,14 +55,11 @@ func ADD8(a uint8, b int) (result uint8, zf, hf, cf bool) {
 	if ((ac&0xf)+(b&0xf))&0x10 > 0 {
 		hf = true
 	}
-
 	// Check carry
 	if int(a) > 0xff {
 		cf = true
 	}
-
 	result = uint8(int(a) + b)
-
 	if result == 0 {
 		zf = true
 	}
@@ -73,94 +70,283 @@ func ADD88(a, b uint8) (result uint8, zf, hf, cf bool) {
 	return ADD8(a, int(b))
 }
 
-func (c *Cpu) AddAr(val uint8) {
+// 8 bit alu
+// ADD n
+func (c *Cpu) ADDr(val uint8) {
 	result, zf, hf, cf := ADD88(c.A, val)
 	c.setFlags(zf, false, hf, cf)
 	c.A = result
 }
 
-func (c *Cpu) AdcAr(val uint8) {
+func ADDAA(c *Cpu)  { c.ADDr(c.A) }
+func ADDAB(c *Cpu)  { c.ADDr(c.B) }
+func ADDAC(c *Cpu)  { c.ADDr(c.C) }
+func ADDAD(c *Cpu)  { c.ADDr(c.D) }
+func ADDAE(c *Cpu)  { c.ADDr(c.E) }
+func ADDAH(c *Cpu)  { c.ADDr(c.H) }
+func ADDAL(c *Cpu)  { c.ADDr(c.L) }
+func ADDAHL(c *Cpu) { c.ADDr(c.MMU.ReadByte(CombineRegisters(c.H, c.L))) }
+func ADDAn(c *Cpu)  { c.ADDr(c.MMU.ReadByte(c.PC)) }
+
+// ADC n
+// Add + carry flag
+func (c *Cpu) ADCr(val uint8) {
 	result, zf, hf, cf := ADD8(c.A, int(val)+int((c.F>>4)&0x1))
 	c.A = result
 	c.setFlags(zf, false, hf, cf)
 }
 
-func (c *Cpu) SubAr(val uint8) {
+func ADCAA(c *Cpu)  { c.ADCr(c.A) }
+func ADCAB(c *Cpu)  { c.ADCr(c.B) }
+func ADCAC(c *Cpu)  { c.ADCr(c.C) }
+func ADCAD(c *Cpu)  { c.ADCr(c.D) }
+func ADCAE(c *Cpu)  { c.ADCr(c.E) }
+func ADCAH(c *Cpu)  { c.ADCr(c.H) }
+func ADCAL(c *Cpu)  { c.ADCr(c.L) }
+func ADCAHL(c *Cpu) { c.ADCr(c.MMU.ReadByte(CombineRegisters(c.H, c.L))) }
+func ADCAn(c *Cpu)  { c.ADCr(c.MMU.ReadByte(c.PC)) }
+
+// SUB n
+func (c *Cpu) SUBr(val uint8) {
 	result, zf, hf, cf := SUB88(c.A, val)
 	c.A = result
 	c.setFlags(zf, true, hf, cf)
 }
 
-func (c *Cpu) SbcAr(val uint8) {
+func SUBAA(c *Cpu)  { c.SUBr(c.A) }
+func SUBAB(c *Cpu)  { c.SUBr(c.B) }
+func SUBAC(c *Cpu)  { c.SUBr(c.C) }
+func SUBAD(c *Cpu)  { c.SUBr(c.D) }
+func SUBAE(c *Cpu)  { c.SUBr(c.E) }
+func SUBAH(c *Cpu)  { c.SUBr(c.H) }
+func SUBAL(c *Cpu)  { c.SUBr(c.L) }
+func SUBAHL(c *Cpu) { c.SUBr(c.MMU.ReadByte(CombineRegisters(c.H, c.L))) }
+func SUBAn(c *Cpu)  { c.SUBr(c.MMU.ReadByte(c.PC)) }
+
+// SBC n + carry flag
+func (c *Cpu) SBCr(val uint8) {
 	flag := int((c.F >> 4) & 0x1)
 	result, zf, hf, cf := SUB8(c.A, int(val)+flag)
 	c.A = result
 	c.setFlags(zf, true, hf, cf)
 }
 
-// 8 bit alu
-// ADD A, n
-func ADDAA(c *Cpu) { c.AddAr(c.A) }
-func ADDAB(c *Cpu) { c.AddAr(c.B) }
-func ADDAC(c *Cpu) { c.AddAr(c.C) }
-func ADDAD(c *Cpu) { c.AddAr(c.D) }
-func ADDAE(c *Cpu) { c.AddAr(c.E) }
-func ADDAH(c *Cpu) { c.AddAr(c.H) }
-func ADDAL(c *Cpu) { c.AddAr(c.L) }
+func SBCAA(c *Cpu)  { c.SBCr(c.A) }
+func SBCAB(c *Cpu)  { c.SBCr(c.B) }
+func SBCAC(c *Cpu)  { c.SBCr(c.C) }
+func SBCAD(c *Cpu)  { c.SBCr(c.D) }
+func SBCAE(c *Cpu)  { c.SBCr(c.E) }
+func SBCAH(c *Cpu)  { c.SBCr(c.H) }
+func SBCAL(c *Cpu)  { c.SBCr(c.L) }
+func SBCAHL(c *Cpu) { c.SBCr(c.MMU.ReadByte(CombineRegisters(c.H, c.L))) }
+func SBCAn(c *Cpu)  { c.SBCr(c.MMU.ReadByte(c.PC)) }
 
-func ADDAHL(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(CombineRegisters(c.H, c.L)))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
+// AND n
+func (c *Cpu) ANDr(val byte) {
+	c.A &= val
+	z := false
+	if c.A == 0 {
+		z = true
+	}
+	c.setFlags(z, false, true, false)
 }
 
-func ADDAn(c *Cpu) {
-	result, zf, hf, cf := ADD88(c.A, c.MMU.ReadByte(c.PC))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
+func ANDAA(c *Cpu)  { c.ANDr(c.A) }
+func ANDAB(c *Cpu)  { c.ANDr(c.B) }
+func ANDAC(c *Cpu)  { c.ANDr(c.C) }
+func ANDAD(c *Cpu)  { c.ANDr(c.D) }
+func ANDAE(c *Cpu)  { c.ANDr(c.E) }
+func ANDAH(c *Cpu)  { c.ANDr(c.H) }
+func ANDAL(c *Cpu)  { c.ANDr(c.L) }
+func ANDAHL(c *Cpu) { c.ANDr(c.MMU.ReadByte(CombineRegisters(c.H, c.L))) }
+func ANDAn(c *Cpu)  { c.ANDr(c.MMU.ReadByte(c.PC)) }
+
+// OR n
+func (c *Cpu) ORr(val byte) {
+	c.A |= val
+	z := false
+	if c.A == 0 {
+		z = true
+	}
+	c.setFlags(z, false, false, false)
 }
 
-// ADC A, n
-// Add + carry flag
-func ADCAA(c *Cpu) { c.AdcAr(c.A) }
-func ADCAB(c *Cpu) { c.AdcAr(c.B) }
-func ADCAC(c *Cpu) { c.AdcAr(c.C) }
-func ADCAD(c *Cpu) { c.AdcAr(c.D) }
-func ADCAE(c *Cpu) { c.AdcAr(c.E) }
-func ADCAH(c *Cpu) { c.AdcAr(c.H) }
-func ADCAL(c *Cpu) { c.AdcAr(c.L) }
+func ORAA(c *Cpu)  { c.ORr(c.A) }
+func ORAB(c *Cpu)  { c.ORr(c.B) }
+func ORAC(c *Cpu)  { c.ORr(c.C) }
+func ORAD(c *Cpu)  { c.ORr(c.D) }
+func ORAE(c *Cpu)  { c.ORr(c.E) }
+func ORAH(c *Cpu)  { c.ORr(c.H) }
+func ORAL(c *Cpu)  { c.ORr(c.L) }
+func ORAHL(c *Cpu) { c.ORr(c.MMU.ReadByte(CombineRegisters(c.H, c.L))) }
+func ORAn(c *Cpu)  { c.ORr(c.MMU.ReadByte(c.PC)) }
 
-func ADCAHL(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(CombineRegisters(c.H, c.L))+int((c.F>>4)&0x1))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
+// XOR n
+func (c *Cpu) XORr(val byte) {
+	c.A ^= val
+	z := false
+	if c.A == 0 {
+		z = true
+	}
+	c.setFlags(z, false, false, false)
 }
 
-func ADCAn(c *Cpu) {
-	result, zf, hf, cf := ADD8(c.A, int(c.MMU.ReadByte(c.PC))+int((c.F>>4)&0x1))
-	c.A = result
-	c.setFlags(zf, false, hf, cf)
-}
+func XORAA(c *Cpu)  { c.XORr(c.A) }
+func XORAB(c *Cpu)  { c.XORr(c.B) }
+func XORAC(c *Cpu)  { c.XORr(c.C) }
+func XORAD(c *Cpu)  { c.XORr(c.D) }
+func XORAE(c *Cpu)  { c.XORr(c.E) }
+func XORAH(c *Cpu)  { c.XORr(c.H) }
+func XORAL(c *Cpu)  { c.XORr(c.L) }
+func XORAHL(c *Cpu) { c.XORr(c.MMU.ReadByte(CombineRegisters(c.H, c.L))) }
+func XORAn(c *Cpu)  { c.XORr(c.MMU.ReadByte(c.PC)) }
 
-// SUB A, n
-func SUBAA(c *Cpu) { c.SubAr(c.A) }
-func SUBAB(c *Cpu) { c.SubAr(c.B) }
-func SUBAC(c *Cpu) { c.SubAr(c.C) }
-func SUBAD(c *Cpu) { c.SubAr(c.D) }
-func SUBAE(c *Cpu) { c.SubAr(c.E) }
-func SUBAH(c *Cpu) { c.SubAr(c.H) }
-func SUBAL(c *Cpu) { c.SubAr(c.L) }
-
-func SUBAHL(c *Cpu) {
-	val := c.MMU.ReadByte(CombineRegisters(c.H, c.L))
-	result, zf, hf, cf := SUB88(c.A, val)
-	c.A = result
+// CP  n
+func (c *Cpu) CPr(val byte) {
+	_, zf, hf, cf := SUB88(c.A, val)
 	c.setFlags(zf, true, hf, cf)
 }
 
-func SUBAn(c *Cpu) {
-	val := c.MMU.ReadByte(c.PC)
-	result, zf, hf, cf := SUB88(c.A, val)
-	c.A = result
-	c.setFlags(zf, true, hf, cf)
+func CPAA(c *Cpu)  { c.CPr(c.A) }
+func CPAB(c *Cpu)  { c.CPr(c.B) }
+func CPAC(c *Cpu)  { c.CPr(c.C) }
+func CPAD(c *Cpu)  { c.CPr(c.D) }
+func CPAE(c *Cpu)  { c.CPr(c.E) }
+func CPAH(c *Cpu)  { c.CPr(c.H) }
+func CPAL(c *Cpu)  { c.CPr(c.L) }
+func CPAHL(c *Cpu) { c.CPr(c.MMU.ReadByte(CombineRegisters(c.H, c.L))) }
+func CPAn(c *Cpu)  { c.CPr(c.MMU.ReadByte(c.PC)) }
+
+// INC n
+func (c *Cpu) INCr(val byte) byte {
+	result, zf, hf, _ := ADD88(val, 1)
+	curCflag := c.F & FLAGCARRY
+	c.setFlags(zf, false, hf, false)
+	c.F |= curCflag
+	return result
+}
+
+func INCA(c *Cpu) { c.A = c.INCr(c.A) }
+func INCB(c *Cpu) { c.B = c.INCr(c.B) }
+func INCC(c *Cpu) { c.C = c.INCr(c.C) }
+func INCD(c *Cpu) { c.D = c.INCr(c.D) }
+func INCE(c *Cpu) { c.E = c.INCr(c.E) }
+func INCH(c *Cpu) { c.H = c.INCr(c.H) }
+func INCL(c *Cpu) { c.L = c.INCr(c.L) }
+func INCHL(c *Cpu) {
+	addr := CombineRegisters(c.H, c.L)
+	curVal := c.MMU.ReadByte(addr)
+	c.MMU.WriteByte(addr, c.INCr(curVal))
+}
+
+// DEC n
+func (c *Cpu) DECr(val byte) byte {
+	result, zf, hf, _ := SUB88(val, 1)
+	curCflag := c.F & FLAGCARRY
+	c.setFlags(zf, true, hf, false)
+	c.F |= curCflag
+	return result
+}
+
+func DECA(c *Cpu) { c.A = c.DECr(c.A) }
+func DECB(c *Cpu) { c.B = c.DECr(c.B) }
+func DECC(c *Cpu) { c.C = c.DECr(c.C) }
+func DECD(c *Cpu) { c.D = c.DECr(c.D) }
+func DECE(c *Cpu) { c.E = c.DECr(c.E) }
+func DECH(c *Cpu) { c.H = c.DECr(c.H) }
+func DECL(c *Cpu) { c.L = c.DECr(c.L) }
+func DECHL(c *Cpu) {
+	addr := CombineRegisters(c.H, c.L)
+	curVal := c.MMU.ReadByte(addr)
+	c.MMU.WriteByte(addr, c.DECr(curVal))
+}
+
+// 16 bit arithmethic
+// ADD HL, n
+func (c *Cpu) ADDHLrr(val uint16) {
+	result, _, hf, cf := ADD16(CombineRegisters(c.H, c.L), val)
+
+	curZflag := c.F & FLAGZERO
+	c.setFlags(false, false, hf, cf)
+	c.F |= curZflag
+	h, l := SplitRegisters(result)
+	c.H = h
+	c.L = l
+}
+
+func ADDHLBC(c *Cpu) { c.ADDHLrr(CombineRegisters(c.B, c.C)) }
+func ADDHLDE(c *Cpu) { c.ADDHLrr(CombineRegisters(c.D, c.E)) }
+func ADDHLHL(c *Cpu) { c.ADDHLrr(CombineRegisters(c.H, c.L)) }
+func ADDHLSP(c *Cpu) { c.ADDHLrr(c.SP) }
+
+// ADD SP, n
+// Recheck this later
+func ADDSPn(c *Cpu) {
+	val := int16(c.MMU.ReadByte(c.PC))
+	// Check half carry
+	cf, hf := false, false
+	if ((c.SP&0xfff)+(uint16(val)&0xfff))&0x1000 > 0 {
+		hf = true
+	}
+
+	// Check carry
+	if int(val)+int(c.SP) > 0xffff {
+		cf = true
+	}
+	c.setFlags(false, false, hf, cf)
+	c.SP = uint16(int32(val) + int32(c.SP))
+}
+
+//	INC rr
+func INCrrBC(c *Cpu) {
+	curVal := CombineRegisters(c.B, c.C)
+	curVal++
+	rb, rc := SplitRegisters(curVal)
+	c.B = rb
+	c.C = rc
+}
+func INCrrDE(c *Cpu) {
+	curVal := CombineRegisters(c.D, c.E)
+	curVal++
+	rd, re := SplitRegisters(curVal)
+	c.D = rd
+	c.E = re
+}
+func INCrrHL(c *Cpu) {
+	curVal := CombineRegisters(c.H, c.L)
+	curVal++
+	rh, rl := SplitRegisters(curVal)
+	c.H = rh
+	c.L = rl
+}
+func INCrrSP(c *Cpu) {
+	c.SP++
+}
+
+//	DEC rr
+func DECrrBC(c *Cpu) {
+	curVal := CombineRegisters(c.B, c.C)
+	curVal--
+	rb, rc := SplitRegisters(curVal)
+	c.B = rb
+	c.C = rc
+}
+
+func DECrrDE(c *Cpu) {
+	curVal := CombineRegisters(c.D, c.E)
+	curVal--
+	rd, re := SplitRegisters(curVal)
+	c.D = rd
+	c.E = re
+}
+
+func DECrrHL(c *Cpu) {
+	curVal := CombineRegisters(c.H, c.L)
+	curVal--
+	rh, rl := SplitRegisters(curVal)
+	c.H = rh
+	c.L = rl
+}
+func DECrrSP(c *Cpu) {
+	c.SP--
 }

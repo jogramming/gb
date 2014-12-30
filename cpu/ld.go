@@ -64,69 +64,21 @@ func LDLH(c *Cpu) { c.L = c.H }
 func LDLL(c *Cpu) { c.L = c.L }
 
 // xHL
-func LDAHL(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.A = c.MMU.ReadByte(addr)
-}
-
-func LDBHL(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.B = c.MMU.ReadByte(addr)
-}
-
-func LDCHL(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.C = c.MMU.ReadByte(addr)
-}
-
-func LDDHL(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.D = c.MMU.ReadByte(addr)
-}
-
-func LDEHL(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.E = c.MMU.ReadByte(addr)
-}
-func LDHHL(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.H = c.MMU.ReadByte(addr)
-}
-func LDLHL(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.L = c.MMU.ReadByte(addr)
-}
+func LDAHL(c *Cpu) { c.A = c.MMU.ReadByte(CombineRegisters(c.H, c.L)) }
+func LDBHL(c *Cpu) { c.B = c.MMU.ReadByte(CombineRegisters(c.H, c.L)) }
+func LDCHL(c *Cpu) { c.C = c.MMU.ReadByte(CombineRegisters(c.H, c.L)) }
+func LDDHL(c *Cpu) { c.D = c.MMU.ReadByte(CombineRegisters(c.H, c.L)) }
+func LDEHL(c *Cpu) { c.E = c.MMU.ReadByte(CombineRegisters(c.H, c.L)) }
+func LDHHL(c *Cpu) { c.H = c.MMU.ReadByte(CombineRegisters(c.H, c.L)) }
+func LDLHL(c *Cpu) { c.L = c.MMU.ReadByte(CombineRegisters(c.H, c.L)) }
 
 // HLx
-func LDHLB(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.MMU.WriteByte(addr, c.B)
-}
-
-func LDHLC(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.MMU.WriteByte(addr, c.C)
-}
-
-func LDHLD(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.MMU.WriteByte(addr, c.D)
-}
-
-func LDHLE(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.MMU.WriteByte(addr, c.E)
-}
-
-func LDHLH(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.MMU.WriteByte(addr, c.H)
-}
-
-func LDHLL(c *Cpu) {
-	addr := CombineRegisters(c.H, c.L)
-	c.MMU.WriteByte(addr, c.L)
-}
+func LDHLB(c *Cpu) { c.MMU.WriteByte(CombineRegisters(c.H, c.L), c.B) }
+func LDHLC(c *Cpu) { c.MMU.WriteByte(CombineRegisters(c.H, c.L), c.C) }
+func LDHLD(c *Cpu) { c.MMU.WriteByte(CombineRegisters(c.H, c.L), c.D) }
+func LDHLE(c *Cpu) { c.MMU.WriteByte(CombineRegisters(c.H, c.L), c.E) }
+func LDHLH(c *Cpu) { c.MMU.WriteByte(CombineRegisters(c.H, c.L), c.H) }
+func LDHLL(c *Cpu) { c.MMU.WriteByte(CombineRegisters(c.H, c.L), c.L) }
 
 func LDHLn(c *Cpu) {
 	addr := CombineRegisters(c.H, c.L)
@@ -143,29 +95,10 @@ func LDAE(c *Cpu) { c.A = c.E }
 func LDAH(c *Cpu) { c.A = c.H }
 func LDAL(c *Cpu) { c.A = c.L }
 
-func LDABC(c *Cpu) {
-	addr := CombineRegisters(c.B, c.C)
-	c.A = c.MMU.ReadByte(addr)
-}
-
-func LDADE(c *Cpu) {
-	addr := CombineRegisters(c.D, c.E)
-	c.A = c.MMU.ReadByte(addr)
-}
-
-// func LDAHL(c *Cpu) {
-// 	addr := CombineRegisters(c.H, c.L)
-// 	c.A = c.MMU.ReadByte(addr)
-// }
-
-func LDAnn(c *Cpu) {
-	addr := c.MMU.ReadWord(c.PC)
-	c.A = c.MMU.ReadByte(addr)
-}
-
-func LDAn(c *Cpu) {
-	c.A = c.MMU.ReadByte(c.PC)
-}
+func LDABC(c *Cpu) { c.A = c.MMU.ReadByte(CombineRegisters(c.B, c.C)) }
+func LDADE(c *Cpu) { c.A = c.MMU.ReadByte(CombineRegisters(c.D, c.E)) }
+func LDAnn(c *Cpu) { c.A = c.MMU.ReadByte(c.MMU.ReadWord(c.PC)) }
+func LDAn(c *Cpu)  { c.A = c.MMU.ReadByte(c.PC) }
 
 // LD n, A
 func LDBA(c *Cpu) { c.B = c.A }
