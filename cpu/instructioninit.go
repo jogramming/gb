@@ -222,5 +222,6 @@ func (c *Cpu) AddInstructions() {
 
 func (c *Cpu) addInstruction(opcode uint16, handler func(*Cpu), size int, cycles int) {
 	instruction := NewInstruction(handler, size, cycles)
+	instruction.Op = opcode
 	c.Instructions[opcode] = &instruction
 }

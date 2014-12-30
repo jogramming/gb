@@ -36,6 +36,7 @@ func (m *MMU) Initialize() {
 	m.ExtRam = make([]byte, 0x1fff)
 	m.OAM = make([]byte, 0xff)
 	m.ZeroPageRam = make([]byte, 0x7f)
+	m.InBios = true
 }
 
 // Reads a byte from memory
