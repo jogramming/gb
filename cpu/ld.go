@@ -232,9 +232,7 @@ func LDHLSPn(c *Cpu) {
 	sp := c.SP
 	result, _, hf, cf := ADD16(sp, uint16(val))
 	c.setFlags(false, false, hf, cf)
-	h, l := SplitRegisters(result)
-	c.L = l
-	c.H = h
+	c.H, c.L := SplitRegisters(result)
 }
 
 // LD (nn), SP
@@ -269,28 +267,20 @@ func PUSHHL(c *Cpu) {
 func POPAF(c *Cpu) {
 	c.SP += 2
 	val := c.MMU.ReadWord(c.SP)
-	a, f := SplitRegisters(val)
-	c.A = a
-	c.F = f
+	c.A, c.F = SplitRegisters(val)
 }
 func POPBC(c *Cpu) {
 	c.SP += 2
 	val := c.MMU.ReadWord(c.SP)
-	b, cc := SplitRegisters(val)
-	c.B = b
-	c.C = cc
+	c.B, cc.C = SplitRegisters(val)
 }
 func POPDE(c *Cpu) {
 	c.SP += 2
 	val := c.MMU.ReadWord(c.SP)
-	d, e := SplitRegisters(val)
-	c.D = d
-	c.E = e
+	c.D, c.E = SplitRegisters(val)
 }
 func POPHL(c *Cpu) {
 	c.SP += 2
 	val := c.MMU.ReadWord(c.SP)
-	h, l := SplitRegisters(val)
-	c.H = h
-	c.L = l
+	c.H, c.L = SplitRegisters(val)
 }
