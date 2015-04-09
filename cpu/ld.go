@@ -198,23 +198,17 @@ func LDIHLA(c *Cpu) {
 // LD n, nn
 func LDBCnn(c *Cpu) {
 	val := c.MMU.ReadWord(c.PC)
-	rb, rc := SplitRegisters(val)
-	c.B = rb
-	c.C = rc
+	c.B, c.C = SplitRegisters(val)
 }
 
 func LDDEnn(c *Cpu) {
 	val := c.MMU.ReadWord(c.PC)
-	d, e := SplitRegisters(val)
-	c.D = d
-	c.E = e
+	c.D, c.E = SplitRegisters(val)
 }
 
 func LDHLnn(c *Cpu) {
 	val := c.MMU.ReadWord(c.PC)
-	h, l := SplitRegisters(val)
-	c.H = h
-	c.L = l
+	c.H, c.L = SplitRegisters(val)
 }
 
 func LDSPnn(c *Cpu) {
@@ -232,7 +226,7 @@ func LDHLSPn(c *Cpu) {
 	sp := c.SP
 	result, _, hf, cf := ADD16(sp, uint16(val))
 	c.setFlags(false, false, hf, cf)
-	c.H, c.L := SplitRegisters(result)
+	c.H, c.L = SplitRegisters(result)
 }
 
 // LD (nn), SP

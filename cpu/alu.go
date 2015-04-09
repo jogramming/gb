@@ -269,9 +269,7 @@ func (c *Cpu) ADDHLrr(val uint16) {
 	curZflag := c.F & FLAGZERO
 	c.setFlags(false, false, hf, cf)
 	c.F |= curZflag
-	h, l := SplitRegisters(result)
-	c.H = h
-	c.L = l
+	c.H, c.L = SplitRegisters(result)
 }
 
 func ADDHLBC(c *Cpu) { c.ADDHLrr(CombineRegisters(c.B, c.C)) }
@@ -301,23 +299,17 @@ func ADDSPn(c *Cpu) {
 func INCrrBC(c *Cpu) {
 	curVal := CombineRegisters(c.B, c.C)
 	curVal++
-	rb, rc := SplitRegisters(curVal)
-	c.B = rb
-	c.C = rc
+	c.B, c.C = SplitRegisters(curVal)
 }
 func INCrrDE(c *Cpu) {
 	curVal := CombineRegisters(c.D, c.E)
 	curVal++
-	rd, re := SplitRegisters(curVal)
-	c.D = rd
-	c.E = re
+	c.D, c.E = SplitRegisters(curVal)
 }
 func INCrrHL(c *Cpu) {
 	curVal := CombineRegisters(c.H, c.L)
 	curVal++
-	rh, rl := SplitRegisters(curVal)
-	c.H = rh
-	c.L = rl
+	c.H, c.L = SplitRegisters(curVal)
 }
 func INCrrSP(c *Cpu) {
 	c.SP++
@@ -327,26 +319,21 @@ func INCrrSP(c *Cpu) {
 func DECrrBC(c *Cpu) {
 	curVal := CombineRegisters(c.B, c.C)
 	curVal--
-	rb, rc := SplitRegisters(curVal)
-	c.B = rb
-	c.C = rc
+	c.B, c.C = SplitRegisters(curVal)
 }
 
 func DECrrDE(c *Cpu) {
 	curVal := CombineRegisters(c.D, c.E)
 	curVal--
-	rd, re := SplitRegisters(curVal)
-	c.D = rd
-	c.E = re
+	c.D, c.E = SplitRegisters(curVal)
 }
 
 func DECrrHL(c *Cpu) {
 	curVal := CombineRegisters(c.H, c.L)
 	curVal--
-	rh, rl := SplitRegisters(curVal)
-	c.H = rh
-	c.L = rl
+	c.H, c.L = SplitRegisters(curVal)
 }
+
 func DECrrSP(c *Cpu) {
 	c.SP--
 }
