@@ -27,7 +27,8 @@ type Cpu struct {
 	Stop            chan bool
 	DebuggerEnabled bool
 	Debugger        *debugger.Debugger
-	LastOP          uint16
+	LastInstruction *Instruction
+	LastOp          uint16
 }
 
 func (c *Cpu) Reset() {
@@ -84,16 +85,18 @@ func (c *Cpu) execOp() {
 	if op == 0xcb {
 		op2 := c.MMU.ReadByte(c.PC)
 		c.PC++
-		op = (op << 8) + uint16(op2)
+		op = (op << 8) | uint16(op2)
 		sizeMod = 2
 	}
-	c.LastOP = op
+	c.LastOp = op
+	c.LastInstruction = nil
 	instruction, ok := c.Instructions[op]
 	if !ok {
 		fmt.Printf("Unknown instruction [%X] @ location [%x], stopping...\n", op, c.PC-uint16(sizeMod))
 		c.Stop <- true
 		return
 	}
+	c.LastInstruction = instruction
 	handler := instruction.Handler
 	if handler == nil {
 		fmt.Println("Unimplemented instruction", instruction)
@@ -104,25 +107,30 @@ func (c *Cpu) execOp() {
 	c.M += uint8(instruction.Cycles / 4)
 
 	if c.MMU.InBios {
-		if op >= 0xff {
+		if c.PC >= 0xff {
 			c.MMU.InBios = false
 		}
 	}
 }
 
 func (c *Cpu) updateDebugger() {
+	mn := "unknown"
+	if c.LastInstruction != nil {
+		mn = c.LastInstruction.Mnemonic
+	}
 	c.Debugger.Registers = debugger.R{
-		A:      c.A,
-		B:      c.B,
-		C:      c.C,
-		D:      c.D,
-		E:      c.E,
-		H:      c.H,
-		L:      c.L,
-		F:      c.F,
-		SP:     c.SP,
-		PC:     c.PC,
-		LastOp: c.LastOP,
+		A:            c.A,
+		B:            c.B,
+		C:            c.C,
+		D:            c.D,
+		E:            c.E,
+		H:            c.H,
+		L:            c.L,
+		F:            c.F,
+		SP:           c.SP,
+		PC:           c.PC,
+		LastOp:       c.LastOp,
+		LastMnemonic: mn,
 	}
 
 	c.Debugger.Draw()
@@ -187,10 +195,11 @@ func NewInstruction(handler func(*Cpu), size int, cycles int) Instruction {
 }
 
 type Instruction struct {
-	Handler func(*Cpu) // Returns the number of extra cpu cycles used
-	Size    int        // size in bytes
-	Cycles  int        // Number of cycles used normally
-	Op      uint16     // 8 bit if not cb pref
+	Handler  func(*Cpu) // Returns the number of extra cpu cycles used
+	Size     int        // size in bytes
+	Cycles   int        // Number of cycles used normally
+	Op       uint16     // 8 bit if not cb pref
+	Mnemonic string
 }
 
 func (i *Instruction) String() string {

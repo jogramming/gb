@@ -84,3 +84,48 @@ func DI(c *Cpu) {}
 // but not immediately. Interrupts are enabled after
 // instruction after EI is executed
 func EI() {}
+
+// JR cc,n
+// Description:
+//   If following condition is true then add n to current
+//   address and jump to it:
+// Use with:
+//   n = one byte signed immediate value
+//    cc = NZ, Jump if Z flag is reset.
+//    cc = Z,  Jump if Z flag is set.
+//    cc = NC, Jump if C flag is reset.
+//    cc = C,  Jump if C flag is set.
+
+func (c *Cpu) JRCCN(zeroond bool, flag byte, n byte) {
+	doJump := false
+	if zeroond {
+		if flag == 0 {
+			doJump = true
+		}
+	} else {
+		if flag > 0 {
+			doJump = true
+		}
+	}
+
+	if doJump {
+		c.PC += uint16(n) - 1
+	}
+}
+
+func JRNZn(c *Cpu) { c.JRCCN(true, c.F&FLAGZERO, c.MMU.ReadByte(c.PC)) }
+func JRZn(c *Cpu)  { c.JRCCN(false, c.F&FLAGZERO, c.MMU.ReadByte(c.PC)) }
+func JRNCn(c *Cpu) { c.JRCCN(true, c.F&FLAGCARRY, c.MMU.ReadByte(c.PC)) }
+func JRCn(c *Cpu)  { c.JRCCN(false, c.F&FLAGCARRY, c.MMU.ReadByte(c.PC)) }
+
+func CALLnn(c *Cpu) {
+	b1 := c.MMU.ReadByte(c.PC)
+	b2 := c.MMU.ReadByte(c.PC + 1)
+	nextInstruction := c.PC + 2
+
+	c.MMU.WriteWord(c.SP, nextInstruction)
+	c.SP -= 2
+
+	combined := uint16(b2<<8) | uint16(b1)
+	c.PC = combined - 2
+}

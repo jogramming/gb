@@ -1,5 +1,10 @@
 package mmu
 
+import (
+	"fmt"
+	"os"
+)
+
 type MMU struct {
 	InBios      bool
 	Bios        []byte
@@ -47,6 +52,11 @@ func (m *MMU) ReadByte(addr uint16) byte {
 		if m.InBios && addr < 0x00ff {
 			// Bios
 			return m.Bios[addr]
+		}
+		if int(addr) > len(m.Rom) {
+			fmt.Println("Tried accessing out of bounds?", m.InBios)
+			os.Exit(1)
+			return 0
 		}
 		return m.Rom[addr]
 	// Rom bank 0
