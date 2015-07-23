@@ -49,8 +49,11 @@ func (m *MMU) ReadByte(addr uint16) byte {
 			return m.Bios[addr]
 		}
 		return m.Rom[addr]
-	// Rom0 and 1
-	case addr >= 0x1000 && addr < 0x8000:
+	// Rom bank 0
+	case addr >= 0x1000 && addr < 0x4000:
+		return m.Rom[addr]
+	//Switchable rom bank
+	case addr >= 0x4000 && addr < 0x8000:
 		return m.Rom[addr]
 	// Graphics video ram (8k)
 	case addr >= 0x8000 && addr < 0xa000:

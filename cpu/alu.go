@@ -3,6 +3,7 @@ package cpu
 // some helpers
 func SUB16(a, b uint16) (result uint16, zf, hf, cf bool) {
 	// TODO
+	// dont think its needed
 	return
 }
 

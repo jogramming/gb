@@ -266,7 +266,7 @@ func POPAF(c *Cpu) {
 func POPBC(c *Cpu) {
 	c.SP += 2
 	val := c.MMU.ReadWord(c.SP)
-	c.B, cc.C = SplitRegisters(val)
+	c.B, c.C = SplitRegisters(val)
 }
 func POPDE(c *Cpu) {
 	c.SP += 2
