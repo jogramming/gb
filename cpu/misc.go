@@ -109,7 +109,7 @@ func (c *Cpu) JRCCN(zeroond bool, flag byte, n byte) {
 	}
 
 	if doJump {
-		c.PC += uint16(n) - 1
+		c.PC += uint16(int8(n))
 	}
 }
 
@@ -128,4 +128,9 @@ func CALLnn(c *Cpu) {
 
 	combined := uint16(b2<<8) | uint16(b1)
 	c.PC = combined - 2
+}
+
+func JPnn(c *Cpu) {
+	newPC := c.MMU.ReadWord(c.PC)
+	c.PC = newPC - 2
 }

@@ -1,19 +1,21 @@
 package mmu
 
 import (
-	"fmt"
+	"log"
 	"os"
 )
 
 type MMU struct {
-	InBios      bool
-	Bios        []byte
-	Rom         []byte
-	WorkingRam  []byte
-	ExtRam      []byte
-	ZeroPageRam []byte
-	VideoRam    []byte
-	OAM         []byte // Graphics Object Attribute Memory
+	InBios                  bool
+	Bios                    []byte
+	Rom                     []byte
+	WorkingRam              []byte
+	ExtRam                  []byte
+	ZeroPageRam             []byte
+	VideoRam                []byte
+	OAM                     []byte // Graphics Object Attribute Memory
+	IO                      []byte
+	InterruptEnableRegister byte
 }
 
 func (m *MMU) Initialize() {
@@ -36,12 +38,48 @@ func (m *MMU) Initialize() {
 		0xF5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xFB, 0x86, 0x20, 0xFE, 0x3E, 0x01, 0xE0, 0x50,
 	}
 	m.Rom = []byte{}
-	m.WorkingRam = make([]byte, 0x1fff)
-	m.VideoRam = make([]byte, 0x1fff)
-	m.ExtRam = make([]byte, 0x1fff)
+	m.WorkingRam = make([]byte, 0x2000)
+	m.VideoRam = make([]byte, 0x2000)
+	m.ExtRam = make([]byte, 0x2000)
 	m.OAM = make([]byte, 0xff)
 	m.ZeroPageRam = make([]byte, 0x7f)
 	m.InBios = true
+	m.IO = make([]byte, 0x4c)
+}
+
+func (m *MMU) SetPostBoot() {
+	m.InBios = false
+
+	m.IO[0x5] = 0x00
+	m.IO[0x6] = 0x00
+	m.IO[0x7] = 0x00
+	m.IO[0x10] = 0x80
+	m.IO[0x11] = 0xBF
+	m.IO[0x12] = 0xF3
+	m.IO[0x14] = 0xBF
+	m.IO[0x16] = 0x3F
+	m.IO[0x17] = 0x00
+	m.IO[0x19] = 0xBF
+	m.IO[0x1A] = 0x7F
+	m.IO[0x1B] = 0xFF
+	m.IO[0x1C] = 0x9F
+	m.IO[0x1E] = 0xBF
+	m.IO[0x20] = 0xFF
+	m.IO[0x21] = 0x00
+	m.IO[0x22] = 0x00
+	m.IO[0x23] = 0xBF
+	m.IO[0x24] = 0x77
+	m.IO[0x25] = 0xF3
+	m.IO[0x26] = 0xF1
+	m.IO[0x40] = 0x91
+	m.IO[0x42] = 0x00
+	m.IO[0x43] = 0x00
+	m.IO[0x45] = 0x00
+	m.IO[0x47] = 0xFC
+	m.IO[0x48] = 0xFF
+	m.IO[0x49] = 0xFF
+	m.IO[0x4A] = 0x00
+	m.IO[0x4B] = 0x00
 }
 
 // Reads a byte from memory
@@ -54,7 +92,7 @@ func (m *MMU) ReadByte(addr uint16) byte {
 			return m.Bios[addr]
 		}
 		if int(addr) > len(m.Rom) {
-			fmt.Println("Tried accessing out of bounds?", m.InBios)
+			log.Println("Tried accessing out of bounds! In bios?", m.InBios)
 			os.Exit(1)
 			return 0
 		}
@@ -81,11 +119,13 @@ func (m *MMU) ReadByte(addr uint16) byte {
 	case addr >= 0xfe00 && addr < 0xfea0:
 		return m.OAM[addr&0xff]
 	// IO
-	case addr >= 0xff00 && addr < 0xff80:
-		// TODO
+	case addr >= 0xff00 && addr < 0xff4c:
+		return m.IO[addr-0xff00]
 	// Zero Page Ram
-	case addr >= 0xff80:
+	case addr >= 0xff80 && addr < 0xffff:
 		return m.ZeroPageRam[addr&0x7f]
+	case addr == 0xffff:
+		return m.InterruptEnableRegister
 	}
 
 	return 0
@@ -95,7 +135,8 @@ func (m *MMU) ReadByte(addr uint16) byte {
 func (m *MMU) ReadWord(addr uint16) uint16 {
 	val1 := m.ReadByte(addr)
 	val2 := m.ReadByte(addr + 1)
-	return uint16(val2<<8) + uint16(val1)
+
+	return uint16(val2)<<8 | uint16(val1)
 }
 
 func (m *MMU) WriteByte(addr uint16, data byte) {
@@ -117,10 +158,12 @@ func (m *MMU) WriteByte(addr uint16, data byte) {
 		m.OAM[addr&0xff] = data
 	// IO
 	case addr >= 0xff00 && addr < 0xff80:
-		// TODO
+		m.IO[addr-0xff00] = data
 	// Zero Page Ram
 	case addr >= 0xff80:
 		m.ZeroPageRam[addr&0x7f] = data
+	case addr == 0xffff:
+		m.InterruptEnableRegister = data
 	}
 }
 

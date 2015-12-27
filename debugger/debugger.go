@@ -1,46 +1,73 @@
 package debugger
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"github.com/jonas747/gb/cpu"
+	"github.com/jonas747/gb/restime"
 	"github.com/nsf/termbox-go"
+	"log"
 	"os"
 	"time"
 )
 
-const (
-	Delay = 100
-)
-
-type R struct {
-	A, B, C, D, E, H, L, F byte // General purpose 8 bit registers(f is flag register)
-	PC, SP                 uint16
-	LastOp                 uint16
-	LastMnemonic           string
-}
-
 type Debugger struct {
-	Paused          bool
-	StepChan        bool
-	Registers       R
-	NumInstructions int
+	cpu              *cpu.Cpu
+	Paused           bool
+	StepChan         bool
+	InStepmode       bool
+	currentlyWaiting bool
+	State            cpu.CPUState
+
+	recentLog []string
+	curDelay  time.Duration
 }
 
-func (d *Debugger) Run() {
+func (d *Debugger) Run(c *cpu.Cpu) {
+	d.cpu = c
+
 	err := termbox.Init()
 	if err != nil {
 		fmt.Println("Error starting debugger: ", err)
 	}
+
+	d.InStepmode = true
+	log.SetOutput(d)
+	d.cpu.BreakMode = true
+	d.cpu.BreakChan = make(chan bool)
+	d.curDelay = 100 * time.Millisecond
+	log.Println(restime.Overhead())
 	go d.EventWatcher()
+	go d.Loop()
+}
+
+func (d *Debugger) Loop() {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			d.Draw()
+		}
+	}
+	ticker.Stop()
 }
 
 func (d *Debugger) Draw() {
-	//	fmt.Println("Drawing...")
-	d.NumInstructions++
-	delay := time.NewTimer(time.Millisecond * Delay)
-	DrawString("GameBoy Emulator Debugger, LIMIT 100MS Per Instruction. IN BIOS", 1, 1, termbox.ColorDefault, termbox.ColorDefault)
-	// Draw the registers
+	d.State = d.cpu.GetState()
 
-	DrawString("---Registers-----", 0, 3, termbox.ColorDefault, termbox.ColorDefault)
+	termbox.Clear(termbox.ColorBlack, termbox.ColorBlack)
+	DrawString("GameBoy Emulator Debugger", 1, 1, termbox.ColorDefault, termbox.ColorDefault)
+	mode := "Delayed"
+	if d.InStepmode {
+		mode = "Stepmode"
+	} else if d.curDelay <= 0 {
+		mode = "Fullspeed"
+	}
+	DrawString(fmt.Sprintf("Mode: %s, Delay: %dus, Speed: %fkhz", mode, d.curDelay/1000000, d.State.Speed/1000), 1, 2, termbox.ColorDefault, termbox.ColorCyan)
+	// Draw the State
+
+	DrawString("---State-----", 0, 3, termbox.ColorDefault, termbox.ColorDefault)
 	DrawString("A:", 1, 4, termbox.ColorDefault, termbox.ColorDefault)
 	DrawString("B:", 1, 5, termbox.ColorDefault, termbox.ColorDefault)
 	DrawString("C:", 1, 6, termbox.ColorDefault, termbox.ColorDefault)
@@ -48,44 +75,88 @@ func (d *Debugger) Draw() {
 	DrawString("E:", 1, 8, termbox.ColorDefault, termbox.ColorDefault)
 	DrawString("H:", 1, 9, termbox.ColorDefault, termbox.ColorDefault)
 	DrawString("L:", 1, 10, termbox.ColorDefault, termbox.ColorDefault)
-	f := d.Registers.F
+	f := d.State.F
 	DrawString(fmt.Sprintf("FLAGS Z: %d N: %d H: %d C: %d", f>>7, (f>>6)&1, f>>5&1, f>>4&1), 1, 11, termbox.ColorDefault, termbox.ColorDefault)
 
 	DrawString("-------", 1, 12, termbox.ColorDefault, termbox.ColorDefault)
 	DrawString("SP:", 1, 13, termbox.ColorDefault, termbox.ColorDefault)
 	DrawString("PC:", 1, 14, termbox.ColorDefault, termbox.ColorDefault)
 
-	DrawString(fmt.Sprintf("0x%X", d.Registers.A), 4, 4, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("0x%X", d.Registers.B), 4, 5, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("0x%X", d.Registers.C), 4, 6, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("0x%X", d.Registers.D), 4, 7, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("0x%X", d.Registers.E), 4, 8, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("0x%X", d.Registers.H), 4, 9, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("0x%X", d.Registers.L), 4, 10, termbox.ColorDefault, termbox.ColorDefault)
-	//DrawString(fmt.Sprintf("0x%X", d.Registers.F), 4, 11, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("0x%X", d.Registers.SP), 4, 13, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("0x%X", d.Registers.PC), 4, 14, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.A), 4, 4, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.B), 4, 5, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.C), 4, 6, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.D), 4, 7, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.E), 4, 8, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.H), 4, 9, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.L), 4, 10, termbox.ColorDefault, termbox.ColorDefault)
+	//DrawString(fmt.Sprintf("0x%X", d.State.F), 4, 11, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.SP), 4, 13, termbox.ColorDefault, termbox.ColorDefault)
+	DrawString(fmt.Sprintf("0x%X", d.State.PC), 4, 14, termbox.ColorDefault, termbox.ColorDefault)
 
 	DrawString("-------", 1, 15, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("Last OP: 0x%X %s", d.Registers.LastOp, d.Registers.LastMnemonic), 1, 16, termbox.ColorDefault, termbox.ColorRed)
+	DrawString(fmt.Sprintf("Last OP: 0x%X %s", d.State.LastOp, d.State.LastMnemonic), 1, 16, termbox.ColorDefault, termbox.ColorRed)
 
-	DrawString(fmt.Sprintf("Insutructions processed: %d", d.NumInstructions), 20, 5, termbox.ColorDefault, termbox.ColorGreen)
+	DrawString(fmt.Sprintf("Insutructions processed: %d", d.State.Counter), 20, 5, termbox.ColorDefault, termbox.ColorGreen)
+
+	d.DrawLog()
 
 	err := termbox.Flush()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
-	<-delay.C
-	termbox.Clear(termbox.ColorBlack, termbox.ColorBlack)
 }
 
 func (d *Debugger) EventWatcher() {
 	for {
 		e := termbox.PollEvent()
 		if e.Type == termbox.EventKey {
-			os.Exit(1)
+			if e.Key == termbox.KeyEsc {
+				os.Exit(1)
+			} else if e.Key == termbox.KeyArrowUp {
+				d.curDelay += 10 * time.Millisecond
+			} else if e.Key == termbox.KeyArrowDown {
+				d.curDelay -= 10 * time.Millisecond
+			} else if e.Key == termbox.KeySpace {
+				d.cpu.BreakMode = !d.cpu.BreakMode
+			} else if d.cpu.Waiting {
+				d.cpu.BreakChan <- true
+			}
 		}
-		fmt.Println("Got event")
+	}
+}
+
+func (d *Debugger) Write(p []byte) (n int, err error) {
+	if len(p) > 1 {
+		p = p[:len(p)-1]
+	}
+
+	buf := bytes.NewBuffer(p)
+	scanner := bufio.NewScanner(buf)
+
+	lines := make([]string, 0)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	for i := len(lines) - 1; i >= 0; i-- {
+		d.recentLog = append(d.recentLog, lines[i])
+	}
+
+	if len(d.recentLog) > 30 {
+		newLog := make([]string, 0)
+		for i := len(d.recentLog) - 30; i < len(d.recentLog); i++ {
+			newLog = append(newLog, d.recentLog[i])
+		}
+		d.recentLog = newLog
+	}
+	return len(p), nil
+}
+
+func (d *Debugger) DrawLog() {
+	count := 0
+	for i := len(d.recentLog) - 1; i >= 0; i-- {
+		DrawString(d.recentLog[i], 27, 7+count, termbox.ColorDefault, termbox.ColorMagenta)
+		count++
 	}
 }
 

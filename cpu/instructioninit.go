@@ -205,6 +205,7 @@ func (c *Cpu) AddInstructions() {
 	c.addInstruction(0xbf, CPAA, 1, 4, false, "CPAA")
 	// cx
 	c.addInstruction(0xc1, POPBC, 1, 12, false, "POPBC")
+	c.addInstruction(0xc3, JPnn, 3, 16, false, "JPnn")
 	c.addInstruction(0xc5, PUSHBC, 1, 16, false, "PUSHBC")
 	c.addInstruction(0xc6, ADDAn, 2, 8, false, "ADDAn")
 	c.addInstruction(0xce, ADCAn, 2, 8, false, "ADCAn")
@@ -234,6 +235,7 @@ func (c *Cpu) AddInstructions() {
 	//-------------------------------------------------------
 
 	// Prefix CB
+	// 0x
 	c.addInstruction(0x00, RLCB, 2, 8, true, "RLCB")
 	c.addInstruction(0x01, RLCC, 2, 8, true, "RLCC")
 	c.addInstruction(0x02, RLCD, 2, 8, true, "RLCD")
@@ -242,7 +244,7 @@ func (c *Cpu) AddInstructions() {
 	c.addInstruction(0x05, RLCL, 2, 8, true, "RLCL")
 	c.addInstruction(0x06, RLCHL, 2, 8, true, "RLCHL")
 	c.addInstruction(0x07, RLCA, 2, 8, true, "RLCA")
-
+	// 1x
 	c.addInstruction(0x10, RLB, 2, 8, true, "RLB")
 	c.addInstruction(0x11, RLC, 2, 8, true, "RLC")
 	c.addInstruction(0x12, RLD, 2, 8, true, "RLD")
@@ -251,7 +253,7 @@ func (c *Cpu) AddInstructions() {
 	c.addInstruction(0x15, RLL, 2, 8, true, "RLL")
 	c.addInstruction(0x16, RLHL, 2, 8, true, "RLHL")
 	c.addInstruction(0x17, RLA, 2, 8, true, "RLA")
-
+	// 3x
 	c.addInstruction(0x30, SWAPB, 2, 8, true, "SWAPB")
 	c.addInstruction(0x31, SWAPC, 2, 8, true, "SWAPC")
 	c.addInstruction(0x32, SWAPD, 2, 8, true, "SWAPD")
@@ -260,7 +262,10 @@ func (c *Cpu) AddInstructions() {
 	c.addInstruction(0x35, SWAPL, 2, 8, true, "SWAPL")
 	c.addInstruction(0x36, SWAPHL, 2, 16, true, "SWAPHL")
 	c.addInstruction(0x37, SWAPA, 2, 8, true, "SWAPA")
-
+	// 4x
+	// 5x
+	// 6x
+	// 7x
 	c.addInstruction(0x7c, BIT7H, 2, 8, true, "BIT7H")
 }
 
