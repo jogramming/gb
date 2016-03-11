@@ -1,6 +1,10 @@
 // Misc insutructions
 package cpu
 
+import (
+	"log"
+)
+
 func SwapNibles(b byte) byte {
 	out := (b >> 4) | (b << 4)
 	return out
@@ -75,10 +79,12 @@ func HALT(c *Cpu) {}
 // Halt CPU and LCD display until button is pressed
 func STOP(c *Cpu) {}
 
-// his instruction disables interrupts but not
+// This instruction disables interrupts but not
 // immediately. Interrupts are disabled after
 // instruction after DI is executed.
-func DI(c *Cpu) {}
+func DI(c *Cpu) {
+	c.DisableInterrupts = true
+}
 
 // Enable interrupts. This intruction enables interrupts
 // but not immediately. Interrupts are enabled after
@@ -110,6 +116,7 @@ func (c *Cpu) JRCCN(zeroond bool, flag byte, n byte) {
 
 	if doJump {
 		c.PC += uint16(int8(n))
+		log.Printf("Jumped to 0x%X\n", c.PC+1)
 	}
 }
 

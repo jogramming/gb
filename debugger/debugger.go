@@ -3,12 +3,13 @@ package debugger
 import (
 	"bufio"
 	"bytes"
+	"container/list"
 	"fmt"
 	"github.com/jonas747/gb/cpu"
-	"github.com/jonas747/gb/restime"
 	"github.com/nsf/termbox-go"
 	"log"
 	"os"
+	"runtime/debug"
 	"time"
 )
 
@@ -22,6 +23,11 @@ type Debugger struct {
 
 	recentLog []string
 	curDelay  time.Duration
+
+	curHistoryState *list.Element
+	historyIndex    int
+
+	logFile *os.File
 }
 
 func (d *Debugger) Run(c *cpu.Cpu) {
@@ -37,7 +43,12 @@ func (d *Debugger) Run(c *cpu.Cpu) {
 	d.cpu.BreakMode = true
 	d.cpu.BreakChan = make(chan bool)
 	d.curDelay = 100 * time.Millisecond
-	log.Println(restime.Overhead())
+
+	d.logFile, err = os.Create("log.txt")
+	if err != nil {
+		panic(err)
+	}
+
 	go d.EventWatcher()
 	go d.Loop()
 }
@@ -54,7 +65,15 @@ func (d *Debugger) Loop() {
 }
 
 func (d *Debugger) Draw() {
-	d.State = d.cpu.GetState()
+	//fmt.Println("Start draw")
+	usingHistoryString := "True"
+	if d.curHistoryState == nil {
+		usingHistoryString = "False"
+		d.State = d.cpu.GetState()
+	} else {
+		d.State = d.curHistoryState.Value.(cpu.CPUState)
+	}
+	//fmt.Println("end draw")
 
 	termbox.Clear(termbox.ColorBlack, termbox.ColorBlack)
 	DrawString("GameBoy Emulator Debugger", 1, 1, termbox.ColorDefault, termbox.ColorDefault)
@@ -64,7 +83,7 @@ func (d *Debugger) Draw() {
 	} else if d.curDelay <= 0 {
 		mode = "Fullspeed"
 	}
-	DrawString(fmt.Sprintf("Mode: %s, Delay: %dus, Speed: %fkhz", mode, d.curDelay/1000000, d.State.Speed/1000), 1, 2, termbox.ColorDefault, termbox.ColorCyan)
+	DrawString(fmt.Sprintf("Mode: %s, Delay: %dus, Speed: %fkhz, Using history: %s, HistoryIndex: %d", mode, d.curDelay/1000000, d.State.Speed/1000, usingHistoryString, d.historyIndex), 1, 2, termbox.ColorDefault, termbox.ColorCyan)
 	// Draw the State
 
 	DrawString("---State-----", 0, 3, termbox.ColorDefault, termbox.ColorDefault)
@@ -94,7 +113,16 @@ func (d *Debugger) Draw() {
 	DrawString(fmt.Sprintf("0x%X", d.State.PC), 4, 14, termbox.ColorDefault, termbox.ColorDefault)
 
 	DrawString("-------", 1, 15, termbox.ColorDefault, termbox.ColorDefault)
-	DrawString(fmt.Sprintf("Last OP: 0x%X %s", d.State.LastOp, d.State.LastMnemonic), 1, 16, termbox.ColorDefault, termbox.ColorRed)
+
+	op := uint16(0)
+	mn := "Unknown"
+
+	if d.State.LastInstruction != nil {
+		op = d.State.LastInstruction.Op
+		mn = d.State.LastInstruction.Mnemonic
+	}
+
+	DrawString(fmt.Sprintf("Last OP: 0x%X %s", op, mn), 1, 16, termbox.ColorDefault, termbox.ColorRed)
 
 	DrawString(fmt.Sprintf("Insutructions processed: %d", d.State.Counter), 20, 5, termbox.ColorDefault, termbox.ColorGreen)
 
@@ -102,15 +130,26 @@ func (d *Debugger) Draw() {
 
 	err := termbox.Flush()
 	if err != nil {
+		fmt.Println(err)
 		log.Println(err)
 	}
 }
 
 func (d *Debugger) EventWatcher() {
+	defer func() {
+		if r := recover(); r != nil {
+			//log.Println("Panic event watcher! ", r, string(debug.Stack()))
+			termbox.Close()
+			fmt.Println("Panic! ", r, string(debug.Stack()))
+			os.Exit(1)
+		}
+	}()
+
 	for {
 		e := termbox.PollEvent()
 		if e.Type == termbox.EventKey {
 			if e.Key == termbox.KeyEsc {
+				termbox.Close()
 				os.Exit(1)
 			} else if e.Key == termbox.KeyArrowUp {
 				d.curDelay += 10 * time.Millisecond
@@ -118,6 +157,32 @@ func (d *Debugger) EventWatcher() {
 				d.curDelay -= 10 * time.Millisecond
 			} else if e.Key == termbox.KeySpace {
 				d.cpu.BreakMode = !d.cpu.BreakMode
+				d.InStepmode = d.cpu.BreakMode
+			} else if e.Key == termbox.KeyArrowLeft {
+				// Go back in history, undefined behaviour if not paused
+				if d.cpu.HistorySize < 1 {
+					continue
+				}
+				d.historyIndex++
+				if d.curHistoryState == nil {
+					d.cpu.Lock()
+					d.curHistoryState = d.cpu.History.Front().Next()
+					d.cpu.Unlock()
+				} else {
+					d.curHistoryState = d.curHistoryState.Next()
+				}
+			} else if e.Key == termbox.KeyArrowRight {
+				if d.cpu.HistorySize < 1 {
+					continue
+				}
+				// Go forward in history
+				d.historyIndex--
+				if d.historyIndex <= 0 {
+					d.historyIndex = 0
+					d.curHistoryState = nil
+				} else {
+					d.curHistoryState = d.curHistoryState.Prev()
+				}
 			} else if d.cpu.Waiting {
 				d.cpu.BreakChan <- true
 			}
@@ -126,10 +191,10 @@ func (d *Debugger) EventWatcher() {
 }
 
 func (d *Debugger) Write(p []byte) (n int, err error) {
+	d.logFile.Write(p)
 	if len(p) > 1 {
 		p = p[:len(p)-1]
 	}
-
 	buf := bytes.NewBuffer(p)
 	scanner := bufio.NewScanner(buf)
 
@@ -156,6 +221,7 @@ func (d *Debugger) DrawLog() {
 	count := 0
 	for i := len(d.recentLog) - 1; i >= 0; i-- {
 		DrawString(d.recentLog[i], 27, 7+count, termbox.ColorDefault, termbox.ColorMagenta)
+		//fmt.Println(d.recentLog[i])
 		count++
 	}
 }

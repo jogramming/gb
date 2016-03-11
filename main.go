@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/jonas747/gb/cpu"
 	"github.com/jonas747/gb/debugger"
+	"github.com/jonas747/gb/gpu"
 	"github.com/jonas747/gb/mmu"
 	"io/ioutil"
 	"log"
@@ -33,8 +34,14 @@ func main() {
 	c := &cpu.Cpu{
 		MMU:          m,
 		Instructions: make(map[uint16]*cpu.Instruction),
+		HistorySize:  1000,
 	}
 	c.AddInstructions()
+
+	Gpu := &gpu.GPU{
+		MMU: m,
+	}
+	go Gpu.Run()
 
 	debug := new(debugger.Debugger)
 	debug.Run(c)

@@ -3,6 +3,7 @@ package mmu
 import (
 	"log"
 	"os"
+	"sync"
 )
 
 type MMU struct {
@@ -16,6 +17,8 @@ type MMU struct {
 	OAM                     []byte // Graphics Object Attribute Memory
 	IO                      []byte
 	InterruptEnableRegister byte
+
+	sync.Mutex
 }
 
 func (m *MMU) Initialize() {
@@ -44,7 +47,7 @@ func (m *MMU) Initialize() {
 	m.OAM = make([]byte, 0xff)
 	m.ZeroPageRam = make([]byte, 0x7f)
 	m.InBios = true
-	m.IO = make([]byte, 0x4c)
+	m.IO = make([]byte, 0x80)
 }
 
 func (m *MMU) SetPostBoot() {
@@ -84,6 +87,8 @@ func (m *MMU) SetPostBoot() {
 
 // Reads a byte from memory
 func (m *MMU) ReadByte(addr uint16) byte {
+	m.Lock()
+	defer m.Unlock()
 	switch {
 	// Bios / rom0
 	case addr < 0x1000:
@@ -140,6 +145,8 @@ func (m *MMU) ReadWord(addr uint16) uint16 {
 }
 
 func (m *MMU) WriteByte(addr uint16, data byte) {
+	m.Lock()
+	defer m.Unlock()
 	switch {
 	// Video ram (8k)
 	case addr >= 0x8000 && addr < 0xa000:
@@ -158,9 +165,10 @@ func (m *MMU) WriteByte(addr uint16, data byte) {
 		m.OAM[addr&0xff] = data
 	// IO
 	case addr >= 0xff00 && addr < 0xff80:
+		log.Printf("Writing to 0x%X or 0x%X\n", addr, addr-0xff00)
 		m.IO[addr-0xff00] = data
 	// Zero Page Ram
-	case addr >= 0xff80:
+	case addr >= 0xff80 && addr < 0xffff:
 		m.ZeroPageRam[addr&0x7f] = data
 	case addr == 0xffff:
 		m.InterruptEnableRegister = data

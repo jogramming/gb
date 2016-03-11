@@ -227,6 +227,7 @@ func (c *Cpu) AddInstructions() {
 	c.addInstruction(0xf0, LDAIOn, 2, 12, false, "LDAIOn")
 	c.addInstruction(0xf1, POPAF, 1, 12, false, "POPAF")
 	c.addInstruction(0xf2, LDAIOC, 2, 8, false, "LDAIOC")
+	c.addInstruction(0xf3, DI, 1, 4, false, "LDAIOC")
 	c.addInstruction(0xf5, PUSHAF, 1, 16, false, "PUSHAF")
 	c.addInstruction(0xf6, ORAn, 2, 8, false, "ORAn")
 	c.addInstruction(0xfa, LDAnn, 3, 16, false, "LDAnn")

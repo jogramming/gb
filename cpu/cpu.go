@@ -1,9 +1,9 @@
 package cpu
 
 import (
+	"container/list"
 	"fmt"
 	"github.com/jonas747/gb/mmu"
-	"github.com/jonas747/gb/restime"
 	"log"
 	"runtime/debug"
 	"sync"
@@ -17,11 +17,18 @@ const (
 	FLAGCARRY     = 0X10
 )
 
+const (
+	NanoSecondsPercycle float64 = 238.4185791015625
+)
+
 type Cpu struct {
 	// Registers
 	A, B, C, D, E, H, L, F byte   // General purpose 8 bit registers(f is flag register)
 	PC, SP                 uint16 // 16 bit registers
 	M                      uint8  // Machine cycles untill next instruction(clock cycles / 4)
+
+	InterruptsEnabled bool
+	DisableInterrupts bool // If set, after next instruction is processed interrupts are disabled
 
 	Instructions map[uint16]*Instruction
 	MMU          *mmu.MMU
@@ -36,10 +43,13 @@ type Cpu struct {
 
 	Counter int64
 
-	LastCycle          restime.Counter
+	LastCycle          time.Time
 	speedCounter       time.Duration
 	speedCounterCycles int
 	Speed              float32
+
+	HistorySize int
+	History     *list.List
 
 	sync.Mutex
 }
@@ -53,24 +63,23 @@ func (c *Cpu) Reset() {
 
 func (c *Cpu) Run() {
 	defer func() {
+		c.Running = false
+
 		if r := recover(); r != nil {
 			log.Println("Panic! ", r, string(debug.Stack()))
 		}
 	}()
 
+	c.History = list.New()
 	if c.Running {
 		log.Println("Cpu allready running !?!?!")
 		return
 	}
-	// fmt.Println("Starting cpu...")
-	// fmt.Println("Executing bios")
-	c.Running = true
-	defer func() {
-		c.Running = false
-	}()
-	c.LastCycle = restime.Now()
+	fmt.Println("Starting cpu...")
 
-	//realLastCycle := restime.Now()
+	c.Running = true
+
+	lastTime := time.Now()
 	for {
 		if !c.Running {
 			break
@@ -90,20 +99,38 @@ func (c *Cpu) Run() {
 		//log.Println("Took ", taken)
 		//realLastCycle = now
 
-		c.Cycle()
+		now := time.Now().UnixNano()
+		for lastTime.UnixNano() < now {
+			if !c.Running {
+				break
+			}
 
+			lastTime.Add(238)
+			c.Cycle()
+
+			if c.HistorySize > 0 {
+				curState := c.GetState()
+
+				c.Lock()
+				c.History.PushFront(curState)
+				if c.History.Len() > c.HistorySize {
+					c.History.Remove(c.History.Back())
+				}
+				c.Unlock()
+			}
+		}
+		time.Sleep(time.Millisecond)
 	}
-
 }
 
 func (c *Cpu) CalcSpeed() {
-	now := restime.Now()
-	diff := now.Sub(c.LastCycle).Duration()
+	now := time.Now()
+	diff := now.Sub(c.LastCycle)
 	c.speedCounter += diff
 	c.speedCounterCycles++
 	c.LastCycle = now
 
-	if c.speedCounterCycles >= 1000 {
+	if c.speedCounterCycles >= 10000 {
 		timePerCycle := c.speedCounter / time.Duration(c.speedCounterCycles)
 		c.speedCounterCycles = 0
 		c.speedCounter = 0
@@ -112,12 +139,20 @@ func (c *Cpu) CalcSpeed() {
 			timePerCycle = 1
 		}
 		c.Speed = float32(time.Second / time.Duration(timePerCycle))
-		log.Println(c.Speed / 1000)
+		//log.Println(c.Speed / 1000)
 	}
 }
 
 func (c *Cpu) Cycle() {
 	c.Lock()
+	didUnlock := false
+	defer func() {
+		if !didUnlock {
+			c.Unlock()
+		}
+	}()
+
+	isDisablingInterrupts := c.DisableInterrupts
 
 	if c.M > 0 {
 		c.M--
@@ -127,11 +162,18 @@ func (c *Cpu) Cycle() {
 
 	if c.M > 0 {
 		c.Unlock()
+		didUnlock = true
 		return
 	}
 
 	c.execOp()
+
+	if isDisablingInterrupts && c.DisableInterrupts {
+		c.InterruptsEnabled = false
+		c.DisableInterrupts = false
+	}
 	c.Unlock()
+	didUnlock = true
 
 	if c.BreakMode {
 		c.Waiting = true
@@ -178,35 +220,29 @@ func (c *Cpu) execOp() {
 type CPUState struct {
 	A, B, C, D, E, H, L, F byte // General purpose 8 bit registers(f is flag register)
 	PC, SP                 uint16
-	LastOp                 uint16
-	LastMnemonic           string
+	LastInstruction        *Instruction
 	Counter                int64
 	Speed                  float32
 }
 
 func (c *Cpu) GetState() CPUState {
-	// c.Lock()
-	// defer c.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
-	mn := "unknown"
-	if c.LastInstruction != nil {
-		mn = c.LastInstruction.Mnemonic
-	}
 	return CPUState{
-		A:            c.A,
-		B:            c.B,
-		C:            c.C,
-		D:            c.D,
-		E:            c.E,
-		H:            c.H,
-		L:            c.L,
-		F:            c.F,
-		SP:           c.SP,
-		PC:           c.PC,
-		LastOp:       c.LastOp,
-		LastMnemonic: mn,
-		Counter:      c.Counter,
-		Speed:        c.Speed,
+		A:               c.A,
+		B:               c.B,
+		C:               c.C,
+		D:               c.D,
+		E:               c.E,
+		H:               c.H,
+		L:               c.L,
+		F:               c.F,
+		SP:              c.SP,
+		PC:              c.PC,
+		LastInstruction: c.LastInstruction,
+		Counter:         c.Counter,
+		Speed:           c.Speed,
 	}
 }
 
