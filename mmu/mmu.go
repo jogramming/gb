@@ -110,25 +110,25 @@ func (m *MMU) ReadByte(addr uint16) byte {
 		return m.Rom[addr]
 	// Graphics video ram (8k)
 	case addr >= 0x8000 && addr < 0xa000:
-		return m.VideoRam[addr&0x1fff]
+		return m.VideoRam[addr-0x8000]
 	// Ext Ram (8k)
 	case addr >= 0xa000 && addr < 0xc000:
-		return m.ExtRam[addr&0x1fff]
+		return m.ExtRam[addr-0xa000]
 	// Working ram (8k)
 	case addr >= 0xc000 && addr < 0xe000:
-		return m.WorkingRam[addr&0x1fff]
+		return m.WorkingRam[addr-0xc000]
 	// Wroking ram shadow
 	case addr >= 0xe000 && addr < 0xfdff:
-		return m.WorkingRam[addr&0x1fff]
+		return m.WorkingRam[addr-0xe000]
 	// Graphics OAM
 	case addr >= 0xfe00 && addr < 0xfea0:
-		return m.OAM[addr&0xff]
+		return m.OAM[addr-0xfe00]
 	// IO
 	case addr >= 0xff00 && addr < 0xff4c:
 		return m.IO[addr-0xff00]
 	// Zero Page Ram
 	case addr >= 0xff80 && addr < 0xffff:
-		return m.ZeroPageRam[addr&0x7f]
+		return m.ZeroPageRam[addr-0xff80]
 	case addr == 0xffff:
 		return m.InterruptEnableRegister
 	}
@@ -150,26 +150,25 @@ func (m *MMU) WriteByte(addr uint16, data byte) {
 	switch {
 	// Video ram (8k)
 	case addr >= 0x8000 && addr < 0xa000:
-		m.VideoRam[addr&0x1fff] = data
+		m.VideoRam[addr-0x8000] = data
 	// Ext Ram (8k)
 	case addr >= 0xa000 && addr < 0xc000:
-		m.ExtRam[addr&0x1fff] = data
+		m.ExtRam[addr-0xa000] = data
 	// Working ram (8k)
 	case addr >= 0xc000 && addr < 0xe000:
-		m.WorkingRam[addr&0x1fff] = data
+		m.WorkingRam[addr-0xc000] = data
 	// Wroking ram shadow
 	case addr >= 0xe000 && addr < 0xfdff:
-		m.WorkingRam[addr&0x1fff] = data
+		m.WorkingRam[addr-0xe000] = data
 	// Graphics OAM
 	case addr >= 0xfe00 && addr < 0xfea0:
-		m.OAM[addr&0xff] = data
+		m.OAM[addr-0xfe00] = data
 	// IO
 	case addr >= 0xff00 && addr < 0xff80:
-		log.Printf("Writing to 0x%X or 0x%X\n", addr, addr-0xff00)
 		m.IO[addr-0xff00] = data
 	// Zero Page Ram
 	case addr >= 0xff80 && addr < 0xffff:
-		m.ZeroPageRam[addr&0x7f] = data
+		m.ZeroPageRam[addr-0xff80] = data
 	case addr == 0xffff:
 		m.InterruptEnableRegister = data
 	}
