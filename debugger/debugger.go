@@ -6,7 +6,9 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/jonas747/gb/cpu"
+	"github.com/jonas747/gb/gpu"
 	"github.com/nsf/termbox-go"
+	"github.com/veandco/go-sdl2/sdl"
 	"log"
 	"os"
 	"runtime/debug"
@@ -15,6 +17,7 @@ import (
 
 type Debugger struct {
 	cpu              *cpu.Cpu
+	gpu              *gpu.GPU
 	Paused           bool
 	StepChan         bool
 	InStepmode       bool
@@ -30,8 +33,9 @@ type Debugger struct {
 	logFile *os.File
 }
 
-func (d *Debugger) Run(c *cpu.Cpu) {
+func (d *Debugger) Run(c *cpu.Cpu, g *gpu.GPU) {
 	d.cpu = c
+	d.gpu = g
 
 	err := termbox.Init()
 	if err != nil {
@@ -150,6 +154,7 @@ func (d *Debugger) EventWatcher() {
 		if e.Type == termbox.EventKey {
 			if e.Key == termbox.KeyEsc {
 				termbox.Close()
+				sdl.Quit()
 				os.Exit(1)
 			} else if e.Key == termbox.KeyArrowUp {
 				d.curDelay += 10 * time.Millisecond

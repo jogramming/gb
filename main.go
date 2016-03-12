@@ -40,11 +40,12 @@ func main() {
 
 	Gpu := &gpu.GPU{
 		MMU: m,
+		CPU: c,
 	}
 	go Gpu.Run()
 
 	debug := new(debugger.Debugger)
-	debug.Run(c)
+	debug.Run(c, Gpu)
 
 	c.SetPostBoot()
 	c.Run()
